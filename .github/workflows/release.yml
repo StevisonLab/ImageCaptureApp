@@ -18,8 +18,8 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install PyQt5 PyInstaller
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install PyInstaller
+          # if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       - name: Build with PyInstaller
         run: pyinstaller ImCapp.spec --noconfirm
       - name: Package
