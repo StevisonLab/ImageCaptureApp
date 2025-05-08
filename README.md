@@ -2,6 +2,9 @@
 ## Installing Image Capture on Raspberry Pi
 * will be added after packaging is complete
 
+Install the package with  
+`sudo dpkg -i imcapp.deb`
+
 ## Taking pictures with ImageCapture on Raspberry Pi
 ### Set up
 1. Turn on and sign in to the Raspberry Pi
