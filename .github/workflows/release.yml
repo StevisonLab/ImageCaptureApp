@@ -22,7 +22,9 @@ jobs:
       - name: Add Ruby to PATH
         run: |
           echo "$PATH"
+          echo "$HOME"
           echo "$HOME/runner/.gem/ruby/2.7.0/bin" >> "$GITHUB_PATH"
+          echo "$PATH"
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
