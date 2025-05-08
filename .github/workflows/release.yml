@@ -24,3 +24,5 @@ jobs:
         run: pyinstaller pyinstaller.spec --noconfirm
       - name: Package
         run: bash package.sh
+      - name: fpm
+        run: fpm
