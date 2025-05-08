@@ -21,7 +21,7 @@ jobs:
           pip install PyInstaller
           # if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       - name: Build with PyInstaller
-        run: pyinstaller ImCapp.spec --noconfirm
+        run: pyinstaller pyinstaller.spec --noconfirm
       - name: Package
         run: bash package.sh
       - name: fpm
