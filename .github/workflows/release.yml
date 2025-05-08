@@ -33,9 +33,9 @@ jobs:
       - name: Package
         run: bash package.sh
       - name: fpm
-        run: fpm
+        run: fpm -C package -s dir -t deb -n "imcapp" -v ${{ github.ref_name }} -p imcapp.deb
       - name: Generate Changelog
-        run: echo "# Good things have arrived" > ${{ github.workspace }}-CHANGELOG.txt
+        run: cat CHANGELOG.txt > ${{ github.workspace }}-CHANGELOG.txt
       - name: Release
         uses: softprops/action-gh-release@v2
         if: github.ref_type == 'tag'
