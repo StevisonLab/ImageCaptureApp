@@ -21,10 +21,7 @@ jobs:
           ruby-version: 2.7
       - name: Add Ruby to PATH
         run: |
-          echo "$PATH"
-          echo "$HOME"
           echo "$HOME/.gem/ruby/2.7.0/bin" >> "$GITHUB_PATH"
-          echo "$GITHUB_PATH"
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -38,3 +35,13 @@ jobs:
         run: bash package.sh
       - name: fpm
         run: fpm
+      - name: Generate Changelog
+        run: echo "# Good things have arrived" > ${{ github.workspace }}-CHANGELOG.txt
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref_type == 'tag'
+        with:
+          draft: true
+          files: imcapp.deb
+          body_path: ${{ github.workspace }}-CHANGELOG.txt
+          token: ${{ secrets.CUSTOM_GITHUB_TOKEN }}
