@@ -3,8 +3,9 @@ name: Build Freeze Release with PyInstaller and fpm
 on: push
 
 permissions:
-  contents: read
-  contents: write
+  contents: |
+    read
+    write
 
 jobs:
   build:
