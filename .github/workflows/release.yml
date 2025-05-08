@@ -32,10 +32,10 @@ jobs:
         run: pyinstaller pyinstaller.spec --noconfirm
       - name: Package
         run: bash package.sh
-      - name: Freeze with fpm
-        run: fpm
+      - name: fpm
+        run: fpm -C package -s dir -t deb -n "imcapp" -v ${{ github.ref_name }} -p imcapp.deb
       - name: Generate Changelog
-        run: cat LOCAL_CHANGELOG.txt > ${{ github.workspace }}-CHANGELOG.txt
+        run: cat CHANGELOG.txt > ${{ github.workspace }}-CHANGELOG.txt
       - name: Release
         uses: softprops/action-gh-release@v2
         if: github.ref_type == 'tag'
