@@ -30,6 +30,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install PyInstaller
           # if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          gem install dotenv -v 2.8.1
           gem install fpm --user-install
       - name: Build with PyInstaller
         run: pyinstaller pyinstaller.spec --noconfirm
