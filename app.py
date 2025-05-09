@@ -351,6 +351,9 @@ class MainWindow(QMainWindow):
         self.manage_camera_widget.capture_button.clicked.connect(self.check_filepath)
         self.camera_preview.picTaken.connect(self.advance)
         
+        self.manage_camera_widget.do_disable_GUI.connect(self.disable_GUI)
+        self.manage_camera_widget.do_enable_GUI.connect(self.enable_GUI)
+        
         self.manage_vials_widget.vialSelected.connect(self.on_vial_selected)
         self.manage_vials_widget.list_controls.deselect_button.clicked.connect(self.reset_filename)
         self.manage_vials_widget.list_controls.create_list_button.clicked.connect(self.do_vial_list_dlg)
@@ -384,9 +387,10 @@ class MainWindow(QMainWindow):
     def on_fileext_change(self, new_ext):
         self.current_picpath.fileext = new_ext
         
-    @pyqtSlot()
-    def advance(self):
-        self.update_filename()
+    @pyqtSlot(bool)
+    def advance(self, success):
+        if success == True:
+            self.update_filename()
             
     @pyqtSlot()
     def update_filename(self):
@@ -408,9 +412,9 @@ class MainWindow(QMainWindow):
     @pyqtSlot()
     def enable_GUI(self):
         ''' Enable GUI buttons. '''
-        self.capture_button.setEnabled(True)
-        self.af_controls.checkbox.setEnabled(True)
-        self.af_controls.button.setEnabled(True)
+        self.manage_camera_widget.capture_button.setEnabled(True)
+        self.manage_camera_widget.af_controls.checkbox.setEnabled(True)
+        self.manage_camera_widget.af_controls.button.setEnabled(True)
         # self.manage_vials_widget.list_controls.deselect_button.setEnabled(True)
         # self.manage_vials_widget.list_controls.create_list_button.setEnabled(True)
         # self.manage_vials_widget.list_controls.save_list_button.setEnabled(True)
@@ -418,9 +422,9 @@ class MainWindow(QMainWindow):
     @pyqtSlot()
     def disable_GUI(self):
         ''' Disable GUI buttons. '''
-        self.capture_button.setEnabled(False)
-        self.af_controls.checkbox.setEnabled(False)
-        self.af_controls.button.setEnabled(False)
+        self.manage_camera_widget.capture_button.setEnabled(False)
+        self.manage_camera_widget.af_controls.checkbox.setEnabled(False)
+        self.manage_camera_widget.af_controls.button.setEnabled(False)
     
     def make_menubar(self):
         # toolbar = QToolBar("Toolbar test")
@@ -593,6 +597,17 @@ class MainWindow(QMainWindow):
 
 # CAMERA WIDGETS =======================================================
 class CameraControls(QWidget):
+    '''
+    
+    Attributes
+    ----------
+    do_disable_GUI : pyqtSignal()
+    do_enable_GUI : pyqtSignal()
+    '''
+    
+    do_disable_GUI = pyqtSignal()
+    do_enable_GUI = pyqtSignal()
+    
     def __init__(self, preview):
         super().__init__()
         
@@ -619,12 +634,14 @@ class CameraControls(QWidget):
         self.af_controls.button.clicked.connect(self.run_af_once)
         self.af_controls.checkbox.stateChanged.connect(self.af_requirement_changed)
         self.capture_button.clicked.connect(self.capture_button_clicked)
+        
+        self.preview.picTaken.connect(self.do_enable_GUI.emit)
     
     @pyqtSlot()
     def capture_button_clicked(self):
         ''' Respond to image capture button being clicked. '''
         # Disable GUI elements until image capture is complete
-        self.disable_GUI()
+        self.do_disable_GUI.emit()
         
         # Check if autofocus must be performed before image is taken
         if self.af_required == True:
@@ -632,13 +649,13 @@ class CameraControls(QWidget):
             af_worker = Worker(self.run_af)
             # TODO: if fail, run again -- worker.signals.result.connect(self.print_output)
             # Link completion of autofocus thread to image capture function
-            af_worker.signals.finished.connect(self.do_capture)
+            af_worker.signals.finished.connect(self.preview.do_capture)
             # Start autofocus Worker thread, which will start image
             # capture when autofocus is finished
             QThreadPool.globalInstance().start(af_worker)
         else:
             # Start taking picture immediately since not doing autofocus
-            self.do_capture()
+            self.preview.do_capture()
     
     @pyqtSlot()
     def run_af(self):
@@ -646,12 +663,12 @@ class CameraControls(QWidget):
     
     @pyqtSlot()
     def run_af_once(self):
-        self.disable_GUI()
+        self.do_disable_GUI.emit()
         # Set up a thread to run autofocus
         af_worker = Worker(self.run_af)
         # TODO: if fail, run again -- worker.signals.result.connect(self.print_output)
         # Link completion of autofocus thread to enabling GUI
-        af_worker.signals.finished.connect(self.enable_GUI)
+        af_worker.signals.finished.connect(self.do_enable_GUI.emit)
         # Start autofocus Worker thread
         QThreadPool.globalInstance().start(af_worker)
     
@@ -666,8 +683,9 @@ class PreviewPlaceholderWidget(QWidget):
     Attributes
     ----------
     picTaken : pyqtSignal
+        bool : True if picture was taken successfully, False otherwise
     '''
-    picTaken = pyqtSignal()
+    picTaken = pyqtSignal(bool)
     
     def __init__(self):
         super().__init__()
@@ -682,6 +700,7 @@ class PreviewPlaceholderWidget(QWidget):
     @pyqtSlot()
     def do_capture(self):
         print("Cannot take picture without camera")
+        self.picTaken.emit(False)
 
 class CameraPreviewWidget(QWidget):
     '''
@@ -690,8 +709,9 @@ class CameraPreviewWidget(QWidget):
     Attributes
     ----------
     picTaken : pyqtSignal
+        bool : True if picture was taken successfully, False otherwise
     '''
-    picTaken = pyqtSignal()
+    picTaken = pyqtSignal(bool)
     
     def __init__(self, camera, width, height):
         super().__init__()
@@ -727,9 +747,8 @@ class CameraPreviewWidget(QWidget):
         print("Executing capture_pic")
         print(type(job))
         self.picam2.wait(job)
-        self.enable_GUI()
         print("Picture saved as %s" % (PicPath.current_filepath))
-        self.picTaken.emit()
+        self.picTaken.emit(True)
 
 class AFControlsWidget(QWidget):
     ''' A widget containing the widgets that control autofocus. '''
