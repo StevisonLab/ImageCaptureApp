@@ -1,6 +1,12 @@
 name: Build Freeze Release with PyInstaller and fpm
 
-on: push
+on:
+  push:
+    tags:
+      - v0.1.**
+    branches:
+      - 'main'
+      - 'releases/**'
 
 permissions:
   contents: write
