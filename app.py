@@ -6,6 +6,7 @@ import time
 import string
 import traceback, sys
 import csv
+import pwd
 from datetime import datetime
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
@@ -18,6 +19,7 @@ from picamera2.previews.qt import QGlPicamera2, QPicamera2
 
 from pprint import *
 
+basedir = os.path.dirname(__file__)
 
 # UTILITY CLASSES ======================================================
 class WorkerSignals(QObject):
@@ -88,13 +90,59 @@ class Worker(QRunnable):
 class Default():
     file_ext = ".png"
     basename = "Unnamed"
-    save_dir = "/run/user/" +str(os.getuid())+  "/gvfs/smb-share:server=arc.auburn.edu,share=lab/specgen/ImageCapture/Data" #None
-    operator = None
+    # save_dir = "/run/user/" +str(os.getuid())+  "/gvfs/smb-share:server=arc.auburn.edu,share=lab/specgen/ImageCapture/Data" #None
+    save_dir = "ImCapptures"
     initials = None
     exp_id = 1
-    brood_id = "A"
+    batch_id = "A"
     width = 2592 # sensor: 2592x1944-pgAA (5MP)
     height = 1944
+    low = 1
+    high = 100
+    
+    def check_defaults(settings):
+        if not settings.value("file_ext"):
+            settings.setValue("file_ext", Default.file_ext)
+        if not settings.value("basename"):
+            settings.setValue("basename", Default.basename)
+        if not settings.value("save_dir"):
+            settings.setValue("save_dir", Default.save_dir)
+        if not settings.value("initials"):
+            settings.setValue("initials", Default.initials)
+        if not settings.value("exp_id"):
+            settings.setValue("exp_id", Default.exp_id)
+        if not settings.value("batch_id"):
+            settings.setValue("batch_id", Default.batch_id)
+        if not settings.value("width"):
+            settings.setValue("width", Default.width)
+        if not settings.value("height"):
+            settings.setValue("height", Default.height)
+        if not settings.value("low"):
+            settings.setValue("low", Default.low)
+        if not settings.value("high"):
+            settings.setValue("high", Default.high)
+            
+    def clear_defaults(settings):
+        settings.clear()
+    
+    def reset_settings_to_defaults(settings):
+        settings.clear()
+        settings.setValue("file_ext", Default.file_ext)
+        settings.setValue("basename", Default.basename)
+        settings.setValue("save_dir", Default.save_dir)
+        settings.setValue("initials", Default.initials)
+        settings.setValue("exp_id", Default.exp_id)
+        settings.setValue("batch_id", Default.batch_id)
+        settings.setValue("width", Default.width)
+        settings.setValue("height", Default.height)
+        settings.setValue("low", Default.low)
+        settings.setValue("high", Default.high)
+    
+    def set_default_dimensions(width, height):
+        Default.width = width
+        Default.height = height
+        settings.setValue("width", Default.width)
+        settings.setValue("height", Default.height)
 
 class PicPath(QObject):
     ''' A class representing the names and paths of image files
@@ -123,14 +171,17 @@ class PicPath(QObject):
     # Static variables shared between all instances of PicPath
     # Access with PicPath.variable
     uid = os.getuid()
+    pwuser = pwd.getpwuid(uid).pw_name
     today = datetime.now().strftime("%Y-%m-%d")
     script_dir = os.path.dirname(os.path.realpath(__file__))
-    print(script_dir)
     settings = QSettings("Auburn University", "ImCapp")
-    
+    # Default.check_defaults(settings)
+
     save_dir = settings.value("save_dir") if settings.value("save_dir") else Default.save_dir
-    if not os.path.isdir(save_dir):
-        save_dir = script_dir
+    if save_dir[0] != "/":
+        save_dir = os.path.join("home", pwuser, save_dir)
+    # if not os.path.isdir(save_dir):
+        # save_dir = script_dir
     
     default_fileext = settings.value("file_ext") if settings.value("file_ext") else Default.file_ext
     default_basename = settings.value("basename") if settings.value("basename") else Default.basename
@@ -138,15 +189,22 @@ class PicPath(QObject):
     current_filepath = os.path.join(os.path.sep, save_dir, default_filename)
     # current_prettypath = current_filepath
     
-    def __init__(self, initials, exp_id = None, batch_id = None, basename = default_basename,
-                 fileext = default_fileext, in_dir = save_dir):
+    def __init__(
+            self,
+            initials,
+            exp_id = None,
+            batch_id = None,
+            basename = default_basename,
+            fileext = default_fileext,
+            in_dir = save_dir
+    ):
         super().__init__()
         # folder_id = "_".join([PicPath.today, initials, prefix])
         
         self._basename = basename
         self._fileext = fileext
         self._filename = self._basename + self._fileext
-        self._directory = os.path.join(os.path.sep, in_dir, initials, exp_id, batch_id + "_" + PicPath.today)
+        self._directory = os.path.join(os.path.sep, in_dir, initials, exp_id, "RawPhotos", batch_id + "_" + PicPath.today)
         self._filepath = os.path.join(os.path.sep, self._directory, self._filename)
         # self.prettypath = self.make_filepath_pretty1()
         
@@ -296,7 +354,7 @@ class MainWindow(QMainWindow):
     def __init__(self, camera, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.settings = QSettings("Auburn University", "ImCapp")
-        self.check_defaults()
+        Default.check_defaults(self.settings)
         self.load_settings()
         
         start_dlg = StartUpDialog(self)
@@ -309,16 +367,12 @@ class MainWindow(QMainWindow):
         # self._operator = start_dlg.options_widget.userLineEdit.text()
         self._initials = start_dlg.options_widget.initialsLineEdit.text().upper()
         self._exp_id = start_dlg.options_widget.experimentSpinBox.text()
-        self._brood_id = start_dlg.options_widget.broodSpinBox.text()
-        self.folder_id = self.exp_id + self.brood_id
+        self._batch_id = start_dlg.options_widget.batchSpinBox.text()
+        self.folder_id = self.exp_id + self.batch_id
         self.prefix = self.folder_id
-        
-        # self.vial_list = []
-        # self.low = None
-        # self.high = None
 
         self.current_vial_num = None
-        self.current_picpath = PicPath(self.initials, self.exp_id, self.brood_id)
+        self.current_picpath = PicPath(self.initials, self.exp_id, self.batch_id)
         self.current_picpath.filepathChanged.connect(self.update_filename)
         
         # Make a new composite widget to use as the main widget for the
@@ -336,9 +390,19 @@ class MainWindow(QMainWindow):
         self.resize(1000, 600) # Size for when window is not maximized
         self.setWindowState(QtCore.Qt.WindowMaximized)
         
-        # Create widget objects for the left and right panes using the
-        # custom widgets for managing the list of vials and the camera 
+        # Create left pane using custom widgets for managing sample list
         self.manage_vials_widget = ManageVialsWidget()
+        if start_dlg.options_widget.checkbox.isChecked():
+            self.low = start_dlg.options_widget.lowestSpinBox.text()
+            self.high = start_dlg.options_widget.highestSpinBox.text()
+            [self.manage_vials_widget.add_vial_unique(vial) for vial in self.make_vial_list(self.low, self.high, self.prefix)]
+
+        self.manage_vials_widget.vialSelected.connect(self.on_vial_selected)
+        self.manage_vials_widget.list_controls.deselect_button.clicked.connect(self.reset_filename)
+        self.manage_vials_widget.list_controls.create_list_button.clicked.connect(self.do_vial_list_dlg)
+        self.manage_vials_widget.list_controls.save_list_button.clicked.connect(self.save_vial_list)
+
+        # Create right pane using custom widgets for managing camera
         try:
             self.camera_preview = CameraPreviewWidget(camera, self.width, self.height)
             af_available = True if "AfMode" in camera.camera_controls else False
@@ -347,17 +411,11 @@ class MainWindow(QMainWindow):
             af_available = False
             
         self.manage_camera_widget = CameraControls(self.camera_preview)
-        
         self.manage_camera_widget.capture_button.clicked.connect(self.check_filepath)
         self.camera_preview.picTaken.connect(self.advance)
         
         self.manage_camera_widget.do_disable_GUI.connect(self.disable_GUI)
         self.manage_camera_widget.do_enable_GUI.connect(self.enable_GUI)
-        
-        self.manage_vials_widget.vialSelected.connect(self.on_vial_selected)
-        self.manage_vials_widget.list_controls.deselect_button.clicked.connect(self.reset_filename)
-        self.manage_vials_widget.list_controls.create_list_button.clicked.connect(self.do_vial_list_dlg)
-        self.manage_vials_widget.list_controls.save_list_button.clicked.connect(self.save_vial_list)
         
         # Add widgets to the window's layout so they display when the 
         # window is loaded
@@ -501,39 +559,19 @@ class MainWindow(QMainWindow):
         self.save_settings()
         self.check_list_status()
         super().closeEvent(event)
-    
-    def check_defaults(self):
-        if not self.settings.value("file_ext"):
-            self.settings.setValue("file_ext", Default.file_ext)
-        if not self.settings.value("basename"):
-            self.settings.setValue("basename", Default.basename)
-        if not self.settings.value("save_dir"):
-            # save_dir = QFileDialog.getExistingDirectory()
-            # self.current_picpath.directory = save_dir
-            self.settings.setValue("save_dir", Default.save_dir)
-        if not self.settings.value("operator"):
-            self.settings.setValue("operator", Default.operator)
-        if not self.settings.value("initials"):
-            self.settings.setValue("initials", Default.initials)
-        if not self.settings.value("exp_id"):
-            self.settings.setValue("exp_id", Default.exp_id)
-        if not self.settings.value("brood_id"):
-            self.settings.setValue("brood_id", Default.brood_id)
-        if not self.settings.value("width"):
-            self.settings.setValue("width", Default.width)
-        if not self.settings.value("height"):
-            self.settings.setValue("height", Default.height)
             
     def load_settings(self):
         # self.operator = self.settings.value("operator")
         self.initials = self.settings.value("initials")
         self.exp_id = self.settings.value("exp_id")
-        self.brood_id = self.settings.value("brood_id")
+        self.batch_id = self.settings.value("batch_id")
         self.width = self.settings.value("width")
         self.height = self.settings.value("height")
+        self.low = self.settings.value("low")
+        self.high = self.settings.value("high")
         
         try:
-            self.current_picpath.update(self.initials, self.exp_id, self.brood_id)
+            self.current_picpath.update(self.initials, self.exp_id, self.batch_id)
         except:
             pass
         
@@ -541,7 +579,7 @@ class MainWindow(QMainWindow):
         # self.settings.setValue("operator", self.operator)
         self.settings.setValue("initials", self.initials)
         self.settings.setValue("exp_id", self.exp_id)
-        self.settings.setValue("brood_id", self.brood_id)
+        self.settings.setValue("batch_id", self.batch_id)
     
     def check_list_status(self):
         pass
@@ -571,12 +609,12 @@ class MainWindow(QMainWindow):
         self._exp_id = value
 
     @property
-    def brood_id(self):
-        return self._brood_id
+    def batch_id(self):
+        return self._batch_id
 
-    @brood_id.setter
-    def brood_id(self, value):
-        self._brood_id = value
+    @batch_id.setter
+    def batch_id(self, value):
+        self._batch_id = value
 
     @property
     def width(self):
@@ -961,7 +999,6 @@ class SettingsWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.settings = QSettings("Auburn University", "ImCapp")
-        layout = QHBoxLayout()
         
         self.load_defaults_button = QPushButton("Use Defaults")
         self.save_defaults_button = QPushButton("Save as Defaults")
@@ -981,31 +1018,70 @@ class SettingsWidget(QWidget):
         self.experimentSpinBox.setValue(1)
         self.experimentSpinBox.setWrapping(True)
         
-        self.broodSpinBox = CharSpinBox()
+        self.batchSpinBox = CharSpinBox()
+        
+        self.checkbox = QCheckBox("Create starting sample list")
+        self.checkbox.setCheckState(Qt.Checked)
         
         form_layout = QFormLayout()
         # form_layout.addRow(self.tr("Operator:"), self.userLineEdit)
         form_layout.addRow(self.tr("Initials:"), self.initialsLineEdit)
         form_layout.addRow(self.tr("Experiment number:"), self.experimentSpinBox)
-        form_layout.addRow(self.tr("Brood ID:"), self.broodSpinBox)
+        form_layout.addRow(self.tr("Batch ID:"), self.batchSpinBox)
+        form_layout.addRow(self.checkbox)
+        
+        self.lowestSpinBox = QSpinBox()
+        self.lowestSpinBox.setMinimum(0)
+        # self.lowestSpinBox.setValue(1)
+        
+        self.highestSpinBox = QSpinBox()
+        self.highestSpinBox.setMinimum(1)
+        self.highestSpinBox.setMaximum(999)
+        # self.highestSpinBox.setValue(99)
+        
+        self.range_container = QWidget()
+        range_layout = QGridLayout(self.range_container)
+        range_layout.addWidget(QLabel("Lowest:"), 0, 0)
+        range_layout.addWidget(QLabel("Highest:"), 0, 1)
+        range_layout.addWidget(self.lowestSpinBox, 1, 0)
+        range_layout.addWidget(self.highestSpinBox, 1, 1)
+        
+        inputs_layout = QVBoxLayout()
+        inputs_layout.addLayout(form_layout)
+        inputs_layout.addWidget(self.range_container)
         
         buttons_layout = QVBoxLayout()
         buttons_layout.addWidget(self.load_defaults_button)
         buttons_layout.addWidget(self.save_defaults_button)
         buttons_layout.addWidget(self.change_defaults_button)
-        
-        layout.addLayout(form_layout)
+
+        layout = QHBoxLayout()
+        layout.addLayout(inputs_layout)
         layout.addSpacing(10)
         layout.addLayout(buttons_layout)
         self.setLayout(layout)
         self.load_defaults()
         # self.validate_inputs()
         
+        self.if_make_list()
+        
         # self.userLineEdit.textChanged.connect(self.validate_inputs)
         self.initialsLineEdit.textChanged.connect(self.validate_inputs)
         self.change_defaults_button.clicked.connect(self.change_defaults)
         self.load_defaults_button.clicked.connect(self.load_defaults)
         self.save_defaults_button.clicked.connect(self.save_new_defaults)
+        
+        self.checkbox.stateChanged.connect(self.if_make_list)
+    
+    def if_make_list(self):
+        if self.checkbox.isChecked():
+            self.range_container.show()
+            # self.lowestSpinBox.setReadOnly(False)
+            # self.highestSpinBox.setReadOnly(False)
+        else:
+            self.range_container.hide()
+            # self.lowestSpinBox.setReadOnly(True)
+            # self.highestSpinBox.setReadOnly(True)
     
     def validate_inputs(self):
         if self.initialsLineEdit.hasAcceptableInput(): # & self.userLineEdit.hasAcceptableInput()
@@ -1015,22 +1091,25 @@ class SettingsWidget(QWidget):
         defaults_dlg = DefaultsDialog(parent=self)
     
     def load_defaults(self):
-        # self.userLineEdit.setText(self.settings.value("operator"))
         self.initialsLineEdit.setText(self.settings.value("initials"))
         self.experimentSpinBox.setValue(int(self.settings.value("exp_id")))
-        self.broodSpinBox.setValue(self.settings.value("brood_id"))
+        self.batchSpinBox.setValue(self.settings.value("batch_id"))
+        self.lowestSpinBox.setValue(int(self.settings.value("low")))
+        self.highestSpinBox.setValue(int(self.settings.value("high")))
     
     def reset_to_defaults(self):
-        # self.userLineEdit.setText(Default.operator)
         self.initialsLineEdit.setText(Default.initials)
         self.experimentSpinBox.setValue(Default.exp_id)
-        self.broodSpinBox.setValue(Default.brood_id)
+        self.batchSpinBox.setValue(Default.batch_id)
+        self.lowestSpinBox.setValue(Default.low)
+        self.highestSpinBox.setValue(Default.high)
     
     def save_new_defaults(self):
-        # self.settings.setValue("operator", self.userLineEdit.text())
         self.settings.setValue("initials", self.initialsLineEdit.text().upper())
         self.settings.setValue("exp_id", self.experimentSpinBox.text())
-        self.settings.setValue("brood_id", self.broodSpinBox.text())
+        self.settings.setValue("batch_id", self.batchSpinBox.text())
+        self.settings.setValue("low", self.lowestSpinBox.text())
+        self.settings.setValue("high", self.highestSpinBox.text())
 
     @property
     def settings(self):
@@ -1134,7 +1213,7 @@ class SettingsDialog(QDialog):
         self.settings_tab.initialsLineEdit.textChanged.connect(self.validate_inputs)
         self.settings_tab.change_defaults_button.clicked.disconnect()
         self.settings_tab.change_defaults_button.clicked.connect(self.select_defaults_tab)
-        self.defaults_tab.userLineEdit.textChanged.connect(self.validate_inputs)
+        # self.defaults_tab.userLineEdit.textChanged.connect(self.validate_inputs)
         self.defaults_tab.initialsLineEdit.textChanged.connect(self.validate_inputs)
         self.tabs.currentChanged.connect(self.validate_inputs)
         
@@ -1278,6 +1357,7 @@ def check_for_camera(camera_number = 0):
 def main():
     picam2 = check_for_camera()
     app = QApplication([])
+    app.setWindowIcon(QIcon(os.path.join(basedir, "icons", "icon.svg")))
     window = MainWindow(picam2)
     window.show()
     app.exec()

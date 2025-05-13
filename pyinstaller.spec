@@ -5,7 +5,7 @@ a = Analysis(
     ['app.py'],
     pathex=[],
     binaries=[],
-    datas=[],
+    datas=[('icons','icons')],
     hiddenimports=['OpenGL.platform.egl'],
     hookspath=[],
     hooksconfig={},

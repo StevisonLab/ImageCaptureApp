@@ -1,6 +1,0 @@
--C package
--s dir
--t deb
--n "imcapp"
--v 0.1.0
--p imcapp.deb

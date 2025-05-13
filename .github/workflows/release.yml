@@ -39,7 +39,7 @@ jobs:
       - name: Package
         run: bash package.sh
       - name: fpm
-        run: fpm -C package -s dir -t deb -n "imcapp" -v ${{ github.ref_name }} -p imcapp.deb
+        run: fpm -C package -s dir -t deb -n "imcapp" -v ${{ github.ref_name }} -p imcapp-v${{ github.ref_name }}.deb
       - name: Generate Changelog
         run: cat CHANGELOG.txt > ${{ github.workspace }}-CHANGELOG.txt
       - name: Release
