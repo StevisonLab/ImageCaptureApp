@@ -1,5 +1,10 @@
-# ImageCapture
-## Installing Image Capture on Raspberry Pi
+# ImageCaptureApp
+## Citing Image
+### Cite the paper:
+
+### Cite the protocol:
+
+## Installing ImageCaptureApp on Raspberry Pi
 * will be added after packaging is complete
 
 Install the package with  
