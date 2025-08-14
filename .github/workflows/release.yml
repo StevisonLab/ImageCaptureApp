@@ -1,7 +1,7 @@
 name: Build Freeze Release with PyInstaller and fpm
 
-on:
-  workflow-dispatch
+on: 
+  workflow_dispatch:
   push:
     tags:
       - v0.1.**
