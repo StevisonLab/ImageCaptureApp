@@ -38,6 +38,8 @@ jobs:
           gem install fpm --user-install
       - name: Package
         run: bash package.sh ${{ github.ref_name }}
+      - name: Generate Changelog
+        run: echo "# Good things have arrived" > ${{ github.workspace }}-CHANGELOG.txt
   
   release:
     runs-on: ubuntu-latest
@@ -48,5 +50,5 @@ jobs:
         with:
           draft: true
           files: imagecaptureapp-v${{ github.ref_name }}.deb
-          body_path: CHANGELOG.md
+          body_path: ${{ github.workspace }}-CHANGELOG.txt
           token: ${{ secrets.GITHUB_TOKEN }}
