@@ -6,6 +6,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
+## [0.1.0] - 2025-08-13
+
+### Added
 - Icon to display in docks and windows.
 
 [Unreleased]: https://github.com/StevisonLab/ImageCaptureApp/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/StevisonLab/ImageCaptureApp/releases/tag/v0.1.0
