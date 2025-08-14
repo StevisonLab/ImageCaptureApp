@@ -3,7 +3,7 @@
 * will be added after packaging is complete
 
 Install the package with  
-`sudo dpkg -i imcapp.deb`
+`sudo dpkg -i imagecaptureapp.deb`
 
 ## Taking pictures with ImageCapture on Raspberry Pi
 ### Set up

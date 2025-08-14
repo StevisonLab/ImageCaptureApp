@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - v0.1.**
+      - v1.0.**
     branches:
       - 'main'
       - 'releases/**'
@@ -12,8 +13,17 @@ permissions:
   contents: write
 
 jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Generate release changelog"
+        uses: janheinrichmerker/action-github-changelog-generator@v2.3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          
   build:
     runs-on: ubuntu-latest
+    needs: changelog
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,19 +44,18 @@ jobs:
           pip install PyInstaller
           gem install dotenv -v 2.8.1
           gem install fpm --user-install
-      - name: Build with PyInstaller
-        run: pyinstaller pyinstaller.spec --noconfirm
       - name: Package
-        run: bash package.sh
-      - name: fpm
-        run: fpm -C package -s dir -t deb -n "imcapp" -v ${{ github.ref_name }} -p imcapp-v${{ github.ref_name }}.deb
-      - name: Generate Changelog
-        run: cat CHANGELOG.txt > ${{ github.workspace }}-CHANGELOG.txt
+        run: bash package.sh ${{ github.ref_name }}
+  
+  release:
+    runs-on:ubuntu-latest
+    needs: build
+    steps:
       - name: Release
         uses: softprops/action-gh-release@v2
         if: github.ref_type == 'tag'
         with:
           draft: true
-          files: imcapp.deb
-          body_path: ${{ github.workspace }}-CHANGELOG.txt
+          files: imagecaptureapp-v${{ github.ref_name }}.deb
+          body: ${{ needs.changelog.outputs.changelog }}  
           token: ${{ secrets.GITHUB_TOKEN }}

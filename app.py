@@ -138,7 +138,7 @@ class Default():
         settings.setValue("low", Default.low)
         settings.setValue("high", Default.high)
     
-    def set_default_dimensions(width, height):
+    def set_default_dimensions(settings, width, height):
         Default.width = width
         Default.height = height
         settings.setValue("width", Default.width)
@@ -364,7 +364,6 @@ class MainWindow(QMainWindow):
         
         self.filepath_found = False
         
-        # self._operator = start_dlg.options_widget.userLineEdit.text()
         self._initials = start_dlg.options_widget.initialsLineEdit.text().upper()
         self._exp_id = start_dlg.options_widget.experimentSpinBox.text()
         self._batch_id = start_dlg.options_widget.batchSpinBox.text()
@@ -387,7 +386,7 @@ class MainWindow(QMainWindow):
         
         # Set window display settings
         self.setWindowTitle("ImCapp")
-        self.resize(1000, 600) # Size for when window is not maximized
+        # self.resize(1000, 600) # Size for when window is not maximized
         self.setWindowState(QtCore.Qt.WindowMaximized)
         
         # Create left pane using custom widgets for managing sample list
@@ -419,14 +418,22 @@ class MainWindow(QMainWindow):
         
         # Add widgets to the window's layout so they display when the 
         # window is loaded
-        layout.addWidget(self.manage_vials_widget, 20)
-        layout.addWidget(self.manage_camera_widget, 70)
+        # layout.addWidget(self.manage_vials_widget, 20)
+        # layout.addWidget(self.manage_camera_widget, 70)
         
+                
+        self.splitter = QSplitter() # [190, 1068]
+        layout.addWidget(self.splitter)
+        self.splitter.addWidget(self.manage_vials_widget)
+        self.splitter.addWidget(self.manage_camera_widget)
+        
+        # print(self.size())
+
+        # self.camera_preview.setMinimumSize(427, 324)
+        # self.camera_preview.setMaximumSize(self.width, self.height)
         # self.camera_preview.setSizePolicy(
             # QSizePolicy.Fixed,
             # QSizePolicy.Fixed)
-        # self.camera_preview.setMinimumSize(427, 324)
-        # self.camera_preview.setMaximumSize(self.width, self.height)
         # self.camera_preview.setSizeIncrement(4, 3)
         # self.camera_preview.
         # print(self.camera_preview.sizeHint())
@@ -558,10 +565,10 @@ class MainWindow(QMainWindow):
     def closeEvent(self, event):
         self.save_settings()
         self.check_list_status()
+        # print(self.splitter.sizes())
         super().closeEvent(event)
             
     def load_settings(self):
-        # self.operator = self.settings.value("operator")
         self.initials = self.settings.value("initials")
         self.exp_id = self.settings.value("exp_id")
         self.batch_id = self.settings.value("batch_id")
@@ -569,6 +576,7 @@ class MainWindow(QMainWindow):
         self.height = self.settings.value("height")
         self.low = self.settings.value("low")
         self.high = self.settings.value("high")
+        # self.splitter.restoreState(settings.value("splitterSizes").toByteArray())
         
         try:
             self.current_picpath.update(self.initials, self.exp_id, self.batch_id)
@@ -576,21 +584,13 @@ class MainWindow(QMainWindow):
             pass
         
     def save_settings(self):
-        # self.settings.setValue("operator", self.operator)
         self.settings.setValue("initials", self.initials)
         self.settings.setValue("exp_id", self.exp_id)
         self.settings.setValue("batch_id", self.batch_id)
+        # settings.setValue("splitterSizes", self.splitter.saveState())
     
     def check_list_status(self):
         pass
-        
-    @property
-    def operator(self):
-        return self._operator
-
-    @operator.setter
-    def operator(self, value):
-        self._operator = value
 
     @property
     def initials(self):
@@ -758,17 +758,20 @@ class CameraPreviewWidget(QWidget):
         
         if not self.picam2:
             raise Exception
+            
+        self.width = width
+        self.height = height
         
         self.picam2.options["quality"] = 95 # JPEG quality 0: lowest -> 95: highest
         self.picam2.options["compress_level"] = 0 # PNG compression 0: none -> 9: most
 
         # Transform(hflip=1, vflip=1)
-        self.preview_config = self.picam2.create_preview_configuration(main={"size": (width, height)})
-        self.capture_config = self.picam2.create_still_configuration(main={"size": (width, height)})
+        self.preview_config = self.picam2.create_preview_configuration(main={"size": (self.width, self.height)})
+        self.capture_config = self.picam2.create_still_configuration(main={"size": (self.width, self.height)})
 
         self.picam2.configure(self.preview_config)
         # self.cam = QGlPicamera2(self.picam2, width=width, height=height, keep_ar=True)
-        self.cam = QPicamera2(self.picam2, width=width, height=height, keep_ar=True)
+        self.cam = QPicamera2(self.picam2, width=self.width, height=self.height, keep_ar=True)
         self.picam2.start()
         self.cam.done_signal.connect(self.capture_pic)
 
@@ -782,11 +785,18 @@ class CameraPreviewWidget(QWidget):
     
     # @pyqtSlot(picamera2.job.Job)
     def capture_pic(self, job):
-        print("Executing capture_pic")
-        print(type(job))
+        # print("Executing capture_pic")
+        # print(type(job))
         self.picam2.wait(job)
-        print("Picture saved as %s" % (PicPath.current_filepath))
+        # print("Picture saved as %s" % (PicPath.current_filepath))
         self.picTaken.emit(True)
+    
+    # def sizeHint(self):
+        # print("hi")
+        # return QSize(self.width, self.height)
+    
+    # def sizeIncrement(self):
+        # return QSize(self.width/100,self.height/100)
 
 class AFControlsWidget(QWidget):
     ''' A widget containing the widgets that control autofocus. '''
@@ -829,10 +839,13 @@ class ManageVialsWidget(QWidget):
         
         # self.nav_buttons = QGroupBox()
         # vial_arrows_layout = QHBoxLayout(self.nav_buttons)
-        self.vial_arrow_prev = QPushButton('<- Previous')
-        self.vial_arrow_next = QPushButton('Next ->')
+        self.vial_arrow_prev = QPushButton('<- Previous') # '<- &Previous'
+        self.vial_arrow_next = QPushButton('&Next ->') # '&Next ->'
         self.vial_arrow_prev.setEnabled(False)
         self.vial_arrow_next.setEnabled(False)
+        
+        # self.vial_arrow_prev.setStyleSheet("text-align:center;")
+        # self.vial_arrow_next.setStyleSheet("text-align:center;")
         
         vial_arrows_layout = QHBoxLayout()
         vial_arrows_layout.addWidget(self.vial_arrow_prev)
@@ -945,7 +958,7 @@ class ManageVialsWidget(QWidget):
 class VialListControlWidget(QGroupBox):
     def __init__(self, *args, **kwargs):
         super().__init__()
-        self.setTitle('Options')
+        # self.setTitle('Edit sample list')
         
         layout = QGridLayout(self)
         
@@ -959,9 +972,9 @@ class VialListControlWidget(QGroupBox):
         self.save_list_button.setEnabled(False)
         self.deselect_button.setEnabled(False)
         
-        layout.addWidget(self.add_from_file_button)
+        # layout.addWidget(self.add_from_file_button)
         layout.addWidget(self.create_list_button)
-        layout.addWidget(self.save_list_button)
+        # layout.addWidget(self.save_list_button)
         layout.addWidget(self.clear_list_button)
         layout.addWidget(self.deselect_button)
         
@@ -1004,11 +1017,6 @@ class SettingsWidget(QWidget):
         self.save_defaults_button = QPushButton("Save as Defaults")
         self.change_defaults_button = QPushButton("Change Defaults")
         
-        # self.userLineEdit = QLineEdit()
-        # user_validator = QRegExpValidator()
-        # user_validator.setRegExp(QRegExp("[a-zA-Z]+"))
-        # self.userLineEdit.setValidator(user_validator)
-        
         self.initialsLineEdit = QLineEdit()
         initials_validator = QRegExpValidator()
         initials_validator.setRegExp(QRegExp("[a-zA-Z]{2,3}"))
@@ -1024,7 +1032,6 @@ class SettingsWidget(QWidget):
         self.checkbox.setCheckState(Qt.Checked)
         
         form_layout = QFormLayout()
-        # form_layout.addRow(self.tr("Operator:"), self.userLineEdit)
         form_layout.addRow(self.tr("Initials:"), self.initialsLineEdit)
         form_layout.addRow(self.tr("Experiment number:"), self.experimentSpinBox)
         form_layout.addRow(self.tr("Batch ID:"), self.batchSpinBox)
@@ -1061,12 +1068,10 @@ class SettingsWidget(QWidget):
         layout.addLayout(buttons_layout)
         self.setLayout(layout)
         self.load_defaults()
-        # self.validate_inputs()
         
         self.if_make_list()
         
-        # self.userLineEdit.textChanged.connect(self.validate_inputs)
-        self.initialsLineEdit.textChanged.connect(self.validate_inputs)
+        # self.initialsLineEdit.textChanged.connect(self.validate_inputs)
         self.change_defaults_button.clicked.connect(self.change_defaults)
         self.load_defaults_button.clicked.connect(self.load_defaults)
         self.save_defaults_button.clicked.connect(self.save_new_defaults)
@@ -1076,16 +1081,12 @@ class SettingsWidget(QWidget):
     def if_make_list(self):
         if self.checkbox.isChecked():
             self.range_container.show()
-            # self.lowestSpinBox.setReadOnly(False)
-            # self.highestSpinBox.setReadOnly(False)
         else:
             self.range_container.hide()
-            # self.lowestSpinBox.setReadOnly(True)
-            # self.highestSpinBox.setReadOnly(True)
     
-    def validate_inputs(self):
-        if self.initialsLineEdit.hasAcceptableInput(): # & self.userLineEdit.hasAcceptableInput()
-            pass
+    # def validate_inputs(self):
+        # if self.initialsLineEdit.hasAcceptableInput():
+            # pass
     
     def change_defaults(self):
         defaults_dlg = DefaultsDialog(parent=self)
@@ -1170,9 +1171,6 @@ class SettingsWidget(QWidget):
 class DefaultsWidget(SettingsWidget):
     def __init__(self):
         super().__init__()
-        # user_validator = QRegExpValidator()
-        # user_validator.setRegExp(QRegExp("([a-zA-Z]+)?"))
-        # super().userLineEdit.setValidator(user_validator)
         
         initials_validator = QRegExpValidator()
         initials_validator.setRegExp(QRegExp("([a-zA-Z]{2,3})?"))
@@ -1209,11 +1207,9 @@ class SettingsDialog(QDialog):
         layout.addWidget(self.button_box)
         self.setLayout(layout)
         
-        # self.settings_tab.userLineEdit.textChanged.connect(self.validate_inputs)
         self.settings_tab.initialsLineEdit.textChanged.connect(self.validate_inputs)
         self.settings_tab.change_defaults_button.clicked.disconnect()
         self.settings_tab.change_defaults_button.clicked.connect(self.select_defaults_tab)
-        # self.defaults_tab.userLineEdit.textChanged.connect(self.validate_inputs)
         self.defaults_tab.initialsLineEdit.textChanged.connect(self.validate_inputs)
         self.tabs.currentChanged.connect(self.validate_inputs)
         
@@ -1238,7 +1234,7 @@ class SettingsDialog(QDialog):
         self.tabs.setCurrentWidget(self.defaults_tab)
     
     def validate_inputs(self):
-        if self.tabs.currentWidget().initialsLineEdit.hasAcceptableInput(): # & self.tabs.currentWidget().userLineEdit.hasAcceptableInput()
+        if self.tabs.currentWidget().initialsLineEdit.hasAcceptableInput():
             self.save_button.setEnabled(True)
         else:
             self.save_button.setEnabled(False)
@@ -1265,11 +1261,10 @@ class StartUpDialog(QDialog):
         self.setLayout(layout)
         self.validate_inputs()
         
-        # self.options_widget.userLineEdit.textChanged.connect(self.validate_inputs)
         self.options_widget.initialsLineEdit.textChanged.connect(self.validate_inputs)
     
     def validate_inputs(self):
-        if self.options_widget.initialsLineEdit.hasAcceptableInput(): # & self.options_widget.userLineEdit.hasAcceptableInput()
+        if self.options_widget.initialsLineEdit.hasAcceptableInput(): 
             self.ok_button.setEnabled(True)
         else:
             self.ok_button.setEnabled(False)
@@ -1294,14 +1289,13 @@ class DefaultsDialog(QDialog):
         layout.addWidget(self.button_box)
         self.setLayout(layout)
         
-        # self.defaults_widget.userLineEdit.textChanged.connect(self.validate_inputs)
         self.defaults_widget.initialsLineEdit.textChanged.connect(self.validate_inputs)
         
         if self.exec():
             self.defaults_widget.save_new_defaults()
         
     def validate_inputs(self):
-        if self.defaults_widget.initialsLineEdit.hasAcceptableInput(): # & self.defaults_widget.userLineEdit.hasAcceptableInput()
+        if self.defaults_widget.initialsLineEdit.hasAcceptableInput():
             self.save_button.setEnabled(True)
         else:
             self.save_button.setEnabled(False)
@@ -1351,11 +1345,26 @@ def check_for_camera(camera_number = 0):
         picam2 = Picamera2(camera_number)
     finally:
         return picam2
+
+def choose_sensor(picam2):
+    settings = QSettings("Auburn University", "ImCapp")
+    sensor_modes = picam2.sensor_modes
+    max_idx = biggest = 0
+    for i, mode in enumerate(sensor_modes):
+        size = mode['size'][0] * mode['size'][1]
+        if size > biggest:
+            biggest = size
+            max_idx = i
+    width, height = sensor_modes[max_idx]['size']
+    Default.set_default_dimensions(settings, width, height)
         
     
 # RUN ==================================================================    
 def main():
+    # settings = QSettings("Auburn University", "ImCapp")
     picam2 = check_for_camera()
+    if picam2 is not None:
+        choose_sensor(picam2)
     app = QApplication([])
     app.setWindowIcon(QIcon(os.path.join(basedir, "icons", "icon.svg")))
     window = MainWindow(picam2)
