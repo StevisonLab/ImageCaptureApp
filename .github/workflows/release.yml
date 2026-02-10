@@ -3,6 +3,7 @@ name: Build Freeze Release with PyInstaller and fpm
 on:
   workflow_dispatch:
   push:
+    paths-ignore: '.**yml'
     tags:
       - v0.1.**
       - v1.0.**
@@ -60,6 +61,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           draft: true
-          files: dist/*
-          body_path: CHANGELOG.md
+          files: dist/**
+          body_path: CHANGELOG.txt
           token: ${{ secrets.GITHUB_TOKEN }}
