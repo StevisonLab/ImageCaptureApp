@@ -1,14 +1,7 @@
-name: Build Freeze Release with PyInstaller and fpm
+name: Build and Release with PyInstaller and fpm
 
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - v0.1.**
-      - v1.0.**
-    branches:
-      - 'main'
-      - 'releases/**'
 
 permissions:
   contents: write
