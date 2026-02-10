@@ -3,7 +3,6 @@ name: Build Freeze Release with PyInstaller and fpm
 on:
   workflow_dispatch:
   push:
-    paths-ignore: '.**yml'
     tags:
       - v0.1.**
       - v1.0.**
