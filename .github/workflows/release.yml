@@ -38,17 +38,26 @@ jobs:
           gem install fpm --user-install
       - name: Package
         run: bash package.sh ${{ github.ref_name }}
+      - name: Store distribution packages
+        uses: actions/upload-artifact@v6
+        with:
+          name: app-distributions
+          path: dist/
+
   
   release:
     runs-on: ubuntu-latest
     needs: build
     steps:
-      - name: Check out the repository to the runner
-        uses: actions/checkout@v4
+      - name: Download all the dists
+        uses: actions/download-artifact@v7
+        with:
+          name: app-distributions
+          path: dist/
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
           draft: true
-          files: imagecaptureapp-v${{ github.ref_name }}.deb
+          files: dist/*
           body: CHANGELOG.md
           token: ${{ secrets.GITHUB_TOKEN }}
