@@ -45,7 +45,7 @@ jobs:
         uses: actions/upload-artifact@v6
         with:
           name: app-distributions
-          path: imagecaptureapp-v${VERS}.deb
+          path: imagecaptureapp-v$VERS.deb
 
 
   release:
