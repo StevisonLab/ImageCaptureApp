@@ -41,6 +41,7 @@ jobs:
           gem install fpm --user-install
       - name: Package
         run: bash package.sh $VERS #${{ github.ref_name }}
+      - name: Check
         run: ls -R
       - name: Store distribution packages
         uses: actions/upload-artifact@v6
