@@ -2,6 +2,16 @@ name: Build and Release with PyInstaller and fpm
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - v0.1.**
+      - v1.0.**
+    branches:
+      - 'main'
+      - 'releases/**'
+
+env:
+  VERS: v1.0.1 # ${{ github.ref_name }}
 
 permissions:
   contents: write
@@ -30,7 +40,8 @@ jobs:
           gem install dotenv -v 2.8.1
           gem install fpm --user-install
       - name: Package
-        run: bash package.sh ${{ github.ref_name }}
+        run: bash package.sh $VERS #${{ github.ref_name }}
+        run: ls -R
       - name: Store distribution packages
         uses: actions/upload-artifact@v6
         with:
@@ -53,6 +64,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           draft: true
-          files: dist/**
+         # files: dist/**
+          files: imagecaptureapp-v${VERS}.deb
           body_path: CHANGELOG.txt
           token: ${{ secrets.GITHUB_TOKEN }}
